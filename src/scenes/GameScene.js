@@ -1,6 +1,9 @@
 import 'phaser';
 import map from '../config/map.js';
 import Enemy from '../objects/Enemy';
+import Turret from '../objects/Turret';
+import Bullet from '../objects/Bullet';
+import levelConfig from '../config/levelConfig';
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -85,5 +88,64 @@ export default class GameScene extends Phaser.Scene {
             classType: Enemy,
             runChildUpdate: true
         });
+        this.turrets = this.add.group({
+            classType: Turret,
+            runChildUpdate: true
+        });
+        this.bullets = this.physics.add.group({
+            classType: Bullet,
+            runChildUpdate: true
+        });
+
+        this.input.on('pointerdown', this.placeTurret.bind(this));
+        this.physics.add.overlap(
+            this.enemies, this.bullets, this.damageEnemy.bind(this));
+    }
+
+    getEnemy(x, y, distance) {
+        var enemyUnits = this.enemies.getChildren();
+        for (var i = 0; i < enemyUnits.length; i++) {
+            var enemy = enemyUnits[i];
+            var enemyDistance = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
+            if (enemy.active && enemyDistance <= distance) {
+                return enemy;
+            }
+        }
+        return false;
+    }
+
+    addBullet(x, y, angle) {
+        var bullet = this.bullets.getFirstDead();
+        if (!bullet) {
+            bullet = new Bullet (this, 0, 0);
+            this.bullets.add(bullet);
+        }
+        bullet.fire(x, y, angle);
+    }
+
+    damageEnemy(enemy, bullet) {
+        if (enemy.active && bullet.active) {
+            bullet.setActive(false);
+            bullet.setVisible(false);
+
+            enemy.receiveDamage(levelConfig.initial.bulletDamage);
+        }
+    }
+
+    placeTurret(pointer) {
+        var i = Math.floor(pointer.y / 64);
+        var j = Math.floor(pointer.x / 64);
+
+        if (this.canPlaceTurret(i, j)) {
+            var turret = this.turrets.getFirstDead();
+            if (!turret) {
+                turret = new Turret(this, 0, 0, this.map);
+                this.turrets.add(turret);
+            }
+            turret.setActive(true);
+            turret.setVisible(true);
+            turret.place(i, j);
+            //TODO: restrict total number of turrets
+        }
     }
 }
